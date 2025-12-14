@@ -25,21 +25,123 @@
  *  The {@code TextCompressor} class provides static methods for compressing
  *  and expanding natural language through textfile input.
  *
- *  @author Zach Blick, YOUR NAME HERE
+ *  @author Zach Blick, Lucas Wang
  */
 public class TextCompressor {
 
+    // Use 12-bit codes for Alice, 16 for Shakespeare (the number of bits per code determines how many possible codes there are; for longer text files this number will be larger)
+    public final static int BITSPERCHAR = 16;
+
     private static void compress() {
+        // Use TST to store our codes
+        TST tst = new TST();
 
-        // TODO: Complete the compress() method
+        // Initialize TST with the first 128 ASCII values; the rest of the TST is built off them
+        for (char i=0;i<=0x7F;i++) {
+            tst.insert(String.valueOf(i), i);
+        }
 
+        // The first "code" starts with 0x81, as 0x80 is taken by EOF
+        int codenum = 0x81;
+
+        // C is the char that we will be adding on to the end of our String when checking if a String of letters exists as a code or not
+        char c = BinaryStdIn.readChar();
+
+        while (!BinaryStdIn.isEmpty()) {
+
+            // Use StringBuilder instead of String concatenation because it's more memory efficient
+            StringBuilder sb = new StringBuilder();
+            sb.append(c);
+
+            // Lastworking stores the last string that is found in the TST, and its code will be written out as output
+            String lastworking = sb.toString();
+
+            // While String s is in tst, add character from BinaryStdIn; also have boundary condition to not go out of bounds
+            while (tst.lookup(sb.toString()) != -1 && !BinaryStdIn.isEmpty()){
+                // Keep track of the last working string for output
+                lastworking = sb.toString();
+
+                // Updating c so the last character from BinaryStdIn that breaks the while loop can still be used in the next iteration of the loop
+                c = BinaryStdIn.readChar();
+                sb.append(c);
+            }
+
+            // Add last working string + next character to TST, check if all codes are used first; then, update the number of codes used so far
+            if (codenum < 0xFFFF) {
+                tst.insert(sb.toString(), codenum);
+                codenum++;
+            }
+
+            BinaryStdOut.write(tst.lookup(lastworking), BITSPERCHAR);
+
+        }
+
+        // Edge case: last character
+        BinaryStdOut.write(tst.lookup(String.valueOf(c)), BITSPERCHAR);
+
+        // Write out EOF
+        BinaryStdOut.write(0x80, BITSPERCHAR);
+        
         BinaryStdOut.close();
     }
 
     private static void expand() {
-
         // TODO: Complete the expand() method
 
+        // Map[] stores the Strings each code corresponds to; size of Map is 2^BITSPERCHAR, or the number of unique codes possible
+        String map[] = new String[65536];
+
+        int code = BinaryStdIn.readInt(BITSPERCHAR);
+        String codestring, lookaheadstring;
+
+        // The first "code" starts with 0x81, as 0x80 is taken by EOF
+        int codenum = 0x81;
+
+        while (!BinaryStdIn.isEmpty()) {
+            // Lookahead is used to generate Strings for codes
+            int lookahead = BinaryStdIn.readInt(BITSPERCHAR);
+
+            // Converting code to String
+            if (code > 0x80) {
+                codestring = map[code];
+            }
+            else {
+                codestring = String.valueOf((char) code);
+            }
+
+            // Need to use a for loop when writing out because we want to still write out 8-bit chars
+            for (int i = 0; i < codestring.length(); i++) {
+                BinaryStdOut.write(codestring.charAt(i), 8);
+            }
+
+            // Look for EOF
+            if (lookahead == 0x80) {
+                break;
+            }
+            // Convert lookahead from code to String
+            if (lookahead > 0x80) {
+                // Edge case: What if our lookahead code doesn't yet exist? Then just add the first character of codestring to the end of it
+                if (map[lookahead] == null) {
+                    lookaheadstring = codestring + codestring.charAt(0);
+                }
+                // Normal case: just look up in map
+                else {
+                    lookaheadstring = map[lookahead];
+                }
+            }
+            else {
+                lookaheadstring = String.valueOf((char) lookahead);
+            }
+
+            // Add the new string to map; check for boundary to not go out of bounds, only use first letter of lookaheadstring because when we created the codes, we only had one more letter than the working code
+            if (codenum < 0xFFFF) {
+                map[codenum] = codestring + lookaheadstring.charAt(0);
+                codenum++;
+            }
+
+            // Update code
+            code = lookahead;
+        }
         BinaryStdOut.close();
     }
 
