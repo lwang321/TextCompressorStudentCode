@@ -54,27 +54,23 @@ public class TextCompressor {
 
             // Lastworking stores the last string that is found in the TST, and its code will be written out as output
             String lastworking = tst.getLongestPrefix(bigstr, index);
+            // Update the index to skip to the next character
             index += lastworking.length();
-            //
 
             if (index < bigstr.length()) {
+                // S stores one more character than the last working string
                 String s = lastworking + bigstr.charAt(index);
+                // Check for boundary condition so we don't go out of bounds
                 if (codenum < MAX_CODE) {
+                    // Add last working string + next character to TST, check if all codes are used first; then, update the number of codes used so far
                     tst.insert(s, codenum);
                     codenum++;
                 }
             }
 
-            // Updating c so the last character from BinaryStdIn that breaks the while loop can still be used in the next iteration of the loop
-
-
-            // Add last working string + next character to TST, check if all codes are used first; then, update the number of codes used so far
-
-
+            // Write out to output
             BinaryStdOut.write(tst.lookup(lastworking), BITSPERCHAR);
         }
-
-        // Edge case: last character
 
         // Write out EOF
         BinaryStdOut.write(0x80, BITSPERCHAR);
