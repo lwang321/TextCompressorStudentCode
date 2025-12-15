@@ -29,10 +29,13 @@
  */
 public class TextCompressor {
 
-    // Use 12-bit codes for Alice, 16 for Shakespeare (the number of bits per code determines how many possible codes there are; for longer text files this number will be larger)
-    public final static int BITSPERCHAR = 16;
+    // Use 14-bit codes for Alice, 19 for Shakespeare (the number of bits per code determines how many possible codes there are; for longer text files this number will be larger)
+    public static int BITSPERCHAR = 8;
+    public static int MAX_CODE = (1 << BITSPERCHAR);
 
     private static void compress() {
+
+        String bigstr = BinaryStdIn.readString();
         // Use TST to store our codes
         TST tst = new TST();
 
@@ -45,39 +48,33 @@ public class TextCompressor {
         int codenum = 0x81;
 
         // C is the char that we will be adding on to the end of our String when checking if a String of letters exists as a code or not
-        char c = BinaryStdIn.readChar();
+        int index = 0;
 
-        while (!BinaryStdIn.isEmpty()) {
-
-            // Use StringBuilder instead of String concatenation because it's more memory efficient
-            StringBuilder sb = new StringBuilder();
-            sb.append(c);
+        while (index < bigstr.length()) {
 
             // Lastworking stores the last string that is found in the TST, and its code will be written out as output
-            String lastworking = sb.toString();
+            String lastworking = tst.getLongestPrefix(bigstr, index);
+            index += lastworking.length();
+            //
 
-            // While String s is in tst, add character from BinaryStdIn; also have boundary condition to not go out of bounds
-            while (tst.lookup(sb.toString()) != -1 && !BinaryStdIn.isEmpty()){
-                // Keep track of the last working string for output
-                lastworking = sb.toString();
-
-                // Updating c so the last character from BinaryStdIn that breaks the while loop can still be used in the next iteration of the loop
-                c = BinaryStdIn.readChar();
-                sb.append(c);
+            if (index < bigstr.length()) {
+                String s = lastworking + bigstr.charAt(index);
+                if (codenum < MAX_CODE) {
+                    tst.insert(s, codenum);
+                    codenum++;
+                }
             }
+
+            // Updating c so the last character from BinaryStdIn that breaks the while loop can still be used in the next iteration of the loop
+
 
             // Add last working string + next character to TST, check if all codes are used first; then, update the number of codes used so far
-            if (codenum < 0xFFFF) {
-                tst.insert(sb.toString(), codenum);
-                codenum++;
-            }
+
 
             BinaryStdOut.write(tst.lookup(lastworking), BITSPERCHAR);
-
         }
 
         // Edge case: last character
-        BinaryStdOut.write(tst.lookup(String.valueOf(c)), BITSPERCHAR);
 
         // Write out EOF
         BinaryStdOut.write(0x80, BITSPERCHAR);
@@ -89,7 +86,7 @@ public class TextCompressor {
         // TODO: Complete the expand() method
 
         // Map[] stores the Strings each code corresponds to; size of Map is 2^BITSPERCHAR, or the number of unique codes possible
-        String map[] = new String[65536];
+        String map[] = new String[MAX_CODE];
 
         int code = BinaryStdIn.readInt(BITSPERCHAR);
         String codestring, lookaheadstring;
@@ -134,7 +131,7 @@ public class TextCompressor {
             }
 
             // Add the new string to map; check for boundary to not go out of bounds, only use first letter of lookaheadstring because when we created the codes, we only had one more letter than the working code
-            if (codenum < 0xFFFF) {
+            if (codenum < MAX_CODE) {
                 map[codenum] = codestring + lookaheadstring.charAt(0);
                 codenum++;
             }
@@ -146,6 +143,12 @@ public class TextCompressor {
     }
 
     public static void main(String[] args) {
+
+        if (args.length == 2) {
+            BITSPERCHAR = Integer.parseInt(args[1]);
+            MAX_CODE = (1 << BITSPERCHAR);
+        }
+
         if      (args[0].equals("-")) compress();
         else if (args[0].equals("+")) expand();
         else throw new IllegalArgumentException("Illegal command line argument");
